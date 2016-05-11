@@ -24,11 +24,6 @@ app.get('/home', function(req, res) {
   res.sendFile(path.join(__dirname + '/getCoverage.html'));
 });
 
-app.post('/home', function(req, res) {
-
-
-});
-
 app.get('/result', function(req, res) {
   res.sendFile(path.join(__dirname + '/teststats.html'));
 });
@@ -389,6 +384,7 @@ var saveToCSVCols = function () {
 
 var writeHTML = function () {
 	'use strict';
+  pageClient.emit('messages', 'Generating result page');
 
 	var deferred = Q.defer();
 	var graph_height = 1000 + (lo.size(coverage_stats) * 10);

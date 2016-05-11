@@ -1,27 +1,136 @@
 <html>
+  <style>
+    .row {
+      margin-top: 10px;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    #statusRow {
+      display: none;
+    }
+
+    #infoRow {
+      display: none;
+    }
+
+    #progBar {
+      width: 80%;
+      height: 20px;
+      -webkit-appearance: none;
+    }
+
+    #progBar::-webkit-progress-bar {
+      background-color: #eee;
+      border-radius: 2px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25) inset;
+    }
+
+    #progBar::-webkit-progress-value {
+      border-radius: 2px;
+    }
+  </style>
   <head>
     <script src="https://code.jquery.com/jquery-1.12.3.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css"/>
+    <script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
   </head>
   <body>
+    <h1>Get Salesforce Test Coverage</h1>
     <form id="sfCredForm" method="post">
-      <div>
-        <label for"sfUserName">Salesforce User Name</label>
-        <input type="text" id="sfUserName" name="sfUserName"></input>
+      <div class="row">
+        <div class="col-sm-2 col-sm-offset-4">
+          <label for"sfPwd">Salesforce Deploy Url</label>
+        </div>
+        <div class="col-sm-2">
+          <input type="text" id="sfUrl" name="sfUrl" placeholder="login.salesforce.com" class="form-control"></input>
+        </div>
       </div>
-      <div>
-        <label for"sfPwd">Salesforce Password</label>
-        <input type="text" id="sfPwd" name="sfPwd"></input>
+      <div class="row">
+        <div class="col-sm-2 col-sm-offset-4">
+          <label for"sfUserName">Salesforce User Name</label>
+        </div>
+        <div class="col-sm-2">
+          <input type="text" id="sfUserName" name="sfUserName" class="form-control"></input>
+        </div>
       </div>
-      <input type="submit" value="submit"></input>
-      <button type="button" id="openResultBtn">Open result page</button>
+      <div class="row">
+        <div class="col-sm-2 col-sm-offset-4">
+          <label for"sfPwd">Salesforce Password</label>
+        </div>
+        <div class="col-sm-2">
+          <input type="Password" id="sfPwd" name="sfPwd" class="form-control"></input>
+        </div>
+      </div>
+      <div class="row" id="statusRow">
+        <div class="col-sm-offset-2">
+          <progress id="progBar" value="0" max="100">
+          </progress>
+        </div>
+      </div>
+      <div class="row" id="infoRow">
+        <div class="col-sm-offset-2">
+          <p id="infoText"></p>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-sm-2 col-sm-offset-4">
+          <button type="button" id="getCoverageBtn" class="btn-primary form-control">Retrieve Test Coverage</button>
+        </div>
+        <div class="col-sm-2">
+          <button type="button" id="openResultBtn" class="btn-primary form-control">Open result page</button>
+        </div>
+      <div>
     </form>
   </body>
 <script>
   $(document).ready(function() {
     $("#openResultBtn").click(function(){
-      window.location.href = "/result";
+      window.open("/result", "_blank");
+    });
+
+    $("#getCoverageBtn").click(function(){
+      var socket = io.connect('http://localhost:3000');
+      var data = {};
+      data.sfPwd = $("#sfPwd").val();
+      data.sfUserName = $("#sfUserName").val();
+      $("#statusRow").show();
+      $("#infoRow").show();
+
+      socket.emit('join', JSON.stringify(data));
+
+      socket.on('messages', function(data) {
+        var moveBar = true;
+        $("#infoText").text(data);
+        if(data.indexOf("Logging in as") > 0) {
+          moveBar = false;
+        } else if(data === "Logged in") {
+          $("#progBar").val(10) ;
+        }
+        else if(data === "Logged out") {
+          $("#progBar").val(100) ;
+          $("#infoText").text("Your test coverage is successfully generated. Please click Open result page button to view the result");
+        }
+        else if(data === "Fetching class information") {
+          $("#progBar").val(28) ;
+        }
+        else if(data === "Fetching trigger information") {
+          $("#progBar").val(46) ;
+        }
+        else if(data === "Fetching code coverage information") {
+          $("#progBar").val(64) ;
+        }
+        else if(data === "Generating result page") {
+          $("#progBar").val(82) ;
+        }
+      });
     });
   });
+
 </script>
 
 </html>

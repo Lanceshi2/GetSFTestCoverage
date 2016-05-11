@@ -35,7 +35,7 @@ io.on('connection', function(client) {
   client.on('join', function(data){
     console.log(data);
     var sfLogin = JSON.parse(data);
-    sf_deploy_url = 'login.salesforce.com';
+    sf_deploy_url = sfLogin.sfUrl;
     sf_deploy_username = sfLogin.sfUserName;
     sf_deploy_password = sfLogin.sfPwd;
     queueSteps();

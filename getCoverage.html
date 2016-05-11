@@ -43,6 +43,8 @@
       border-radius: 2px;
       background-size: 35px 30px, 100% 100%, 100% 100%;
     }
+
+
   </style>
   <head>
     <script src="https://code.jquery.com/jquery-1.12.3.min.js"></script>
@@ -55,7 +57,7 @@
     <form id="sfCredForm" method="post">
       <div class="row">
         <div class="col-sm-2 col-sm-offset-4">
-          <label for"sfPwd">Salesforce Deploy Url</label>
+          <label for"sfUrl">Salesforce Deploy Url</label>
         </div>
         <div class="col-sm-2">
           <input type="text" id="sfUrl" name="sfUrl" placeholder="login.salesforce.com" class="form-control"></input>
@@ -107,8 +109,10 @@
     $("#getCoverageBtn").click(function(){
       var socket = io.connect('http://localhost:3000');
       var data = {};
+      data.sfUrl = $("#sfUrl").val();
       data.sfPwd = $("#sfPwd").val();
       data.sfUserName = $("#sfUserName").val();
+      
       $("#statusRow").show();
       $("#infoRow").show();
 

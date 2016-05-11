@@ -2,6 +2,10 @@
 
 A node js project which helps getting the test coverage from your Salesforce org
 
+## Screen shots ##
+[[https://github.com/Lanceshi2/GetSFTestCoverage/blob/master/getCoverage.GIF|alt=Get Coverage Page]]
+[[https://github.com/Lanceshi2/GetSFTestCoverage/blob/master/result.GIF|alt=Result]]
+
 ## Prerequisites ##
 You need to ensure you have installed node js first. To download node js. Go to https://nodejs.org/en/
 

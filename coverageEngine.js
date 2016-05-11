@@ -1,5 +1,7 @@
 var express = require('express');
 var app = express();
+var server = require('http').createServer(app);
+var io = require('socket.io')(server);
 var path = require("path");
 var Q = require('q');
 var fs = require('fs');
@@ -10,6 +12,7 @@ var sleep = require('system-sleep');
 var sf_deploy_url = '';
 var sf_deploy_username = '';
 var sf_deploy_password = '';
+var pageClient = null;
 
 var bodyParser = require('body-parser');
 app.use( bodyParser.json() );       // to support JSON-encoded bodies
@@ -22,10 +25,7 @@ app.get('/home', function(req, res) {
 });
 
 app.post('/home', function(req, res) {
-  sf_deploy_url = 'login.salesforce.com';
-  sf_deploy_username = req.body.sfUserName;
-  sf_deploy_password = req.body.sfPwd;
-  queueSteps(res);
+
 
 });
 
@@ -33,7 +33,21 @@ app.get('/result', function(req, res) {
   res.sendFile(path.join(__dirname + '/teststats.html'));
 });
 
-app.listen(3000);
+io.on('connection', function(client) {
+  console.log('Client connected...');
+  pageClient = client;
+
+  client.on('join', function(data){
+    console.log(data);
+    var sfLogin = JSON.parse(data);
+    sf_deploy_url = 'login.salesforce.com';
+    sf_deploy_username = sfLogin.sfUserName;
+    sf_deploy_password = sfLogin.sfPwd;
+    queueSteps();
+  });
+});
+
+server.listen(3000);
 
 
 /** The salesforce client */
@@ -64,6 +78,7 @@ var sfdcLogin = function () {
 	var deferred = Q.defer();
 
 	console.log('Logging in as ' + sf_deploy_username);
+  pageClient.emit('messages', 'Logging in as ' + sf_deploy_username);
   sfdc_client = new jsforce.Connection({loginUrl : 'https://' + sf_deploy_url, version:'36.0'});
 
 	sfdc_client.login(sf_deploy_username, sf_deploy_password, function (error, res) {
@@ -71,6 +86,7 @@ var sfdcLogin = function () {
 			deferred.reject(new Error(error));
 		} else {
 			console.log('Logged in');
+      pageClient.emit('messages', 'Logged in');
 			deferred.resolve();
 		}
 	});
@@ -90,6 +106,7 @@ var sfdcLogout = function () {
 			deferred.reject(new Error(error));
 		} else {
 			console.log('Logged out');
+      pageClient.emit('messages', 'Logged out');
 			deferred.resolve();
 		}
 	});
@@ -106,6 +123,7 @@ var buildClassIdToClassDataMap = function () {
 	var deferred = Q.defer();
 
 	console.log('Fetching class information');
+  pageClient.emit('messages', 'Fetching class information');
 
 	sfdc_client.tooling.sobject('ApexClass').find({NamespacePrefix:'',Status:'Active'},{Id:1,Name:1,Body:1,IsValid:1}).execute(function (error, data) {
 		if (error) {
@@ -145,6 +163,7 @@ var buildAddTriggersToClassIDMap = function () {
 	var deferred = Q.defer();
 
 	console.log('Fetching trigger information');
+  pageClient.emit('messages', 'Fetching trigger information');
 
 	// Get the Trigger info too
 	sfdc_client.tooling.sobject('ApexTrigger').find({NamespacePrefix:'',Status:'Active'},{Id:1,Name:1,Body:1,IsValid:1}).execute(function (error, triggerData) {
@@ -257,6 +276,7 @@ var buildCoverage = function () {
 		deferred = Q.defer();
 
 	console.log('Fetching code coverage information');
+  pageClient.emit('messages', 'Fetching code coverage information');
 	coverage_stats['Total Org Coverage'] = {
 		NumLinesCovered:0,
 		NumLinesUncovered:0,
@@ -505,7 +525,7 @@ var writeHTML = function () {
 // 	return deferred.promise;
 // };
 
-function queueSteps(res) {
+function queueSteps() {
   Q.fcall(sfdcLogin)
   	.then(buildClassIdToClassDataMap)
   	.then(buildAddTriggersToClassIDMap)
@@ -521,6 +541,5 @@ function queueSteps(res) {
   	.done(function () {
   		'use strict';
   		sfdcLogout();
-      res.sendFile(path.join(__dirname + '/teststats.html'));
   	});
 }

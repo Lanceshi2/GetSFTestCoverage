@@ -19,7 +19,7 @@
 
     #progBar {
       width: 80%;
-      height: 20px;
+      height: 30px;
       -webkit-appearance: none;
     }
 
@@ -31,6 +31,17 @@
 
     #progBar::-webkit-progress-value {
       border-radius: 2px;
+      background-image:
+    	   -webkit-linear-gradient(-45deg,
+    	                           transparent 33%, rgba(0, 0, 0, .1) 33%,
+    	                           rgba(0,0, 0, .1) 66%, transparent 66%),
+         -webkit-linear-gradient(top,
+    	                           rgba(255, 255, 255, .25),
+    	                           rgba(0, 0, 0, .25)),
+    	   -webkit-linear-gradient(left, #00C853, #00C853);
+
+      border-radius: 2px;
+      background-size: 35px 30px, 100% 100%, 100% 100%;
     }
   </style>
   <head>

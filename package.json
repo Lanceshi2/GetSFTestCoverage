@@ -2,7 +2,7 @@
   "name": "getTestCoverage",
   "version": "0.0.1",
   "scripts": {
-    "getTestCoverage": "getTestCoverage.js"
+    "coverageEngine": "coverageEngine.js"
   },
   "description": "Retrieves the APEX Test coverage from a Salesforce envionment after running the test classes",
   "readme": "Scripts for providing Salesforce Limits and getting APEX test coverage",

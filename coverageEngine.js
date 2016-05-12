@@ -35,7 +35,7 @@ io.on('connection', function(client) {
   client.on('join', function(data){
     console.log(data);
     var sfLogin = JSON.parse(data);
-    sf_deploy_url = sfLogin.sfUrl;
+    sf_deploy_url = 'login.salesforce.com';
     sf_deploy_username = sfLogin.sfUserName;
     sf_deploy_password = sfLogin.sfPwd;
     queueSteps();
@@ -44,6 +44,7 @@ io.on('connection', function(client) {
 
 server.listen(3000);
 
+console.log("Coverage Engine is successfully started. You can open http://localhost:3000/home now to retrieve test coverage.");
 
 /** The salesforce client */
 var sfdc_client = null;

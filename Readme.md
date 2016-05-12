@@ -23,5 +23,9 @@ Then type in your user name and password. Note that password is actually your pa
 
 After the process is completed. You can view the results by clicking Open result page button.
 
+## Contributors ##
+
+Tony White (Tony.White@smsmt.com) has developed the engine part of the code, which gets the code coverage and generates result csv and html file.
+
 ## License ##
 MIT

@@ -370,12 +370,16 @@ var saveToCSVCols = function () {
 
 	console.log('Writing to file for Jenkins');
 
-	var writer = csvWriter(),
+	var writer = csvWriter({headers: ["class name", "coverage"]}),
 		deferred = Q.defer();
 	writer.pipe(fs.createWriteStream(CSVFilename));
 	//coverage_stats.sort();
 
-	writer.write(lo.mapValues(coverage_stats, 'Coverage'));
+  var temp = lo.mapValues(coverage_stats, 'Coverage');
+  var keys = lo.keys(temp).sort().reverse();
+  lo.forEach(keys,function(key) {
+    writer.write([key, temp[key]]);
+  });
 
 	console.log('Total Org Coverage: ' + coverage_stats['Total Org Coverage'].Coverage + ' (' + coverage_stats['Total Org Coverage'].NumLinesCovered + '/' + coverage_stats['Total Org Coverage'].TotalLines + ')');
 	writer.end();

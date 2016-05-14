@@ -13,6 +13,7 @@ var sf_deploy_url = '';
 var sf_deploy_username = '';
 var sf_deploy_password = '';
 var pageClient = null;
+var errorOccurred = true;
 
 var bodyParser = require('body-parser');
 app.use( bodyParser.json() );       // to support JSON-encoded bodies
@@ -79,6 +80,7 @@ var sfdcLogin = function () {
 
 	sfdc_client.login(sf_deploy_username, sf_deploy_password, function (error, res) {
 		if (error) {
+      pageClient.emit('messages', 'Error Occurred');
 			deferred.reject(new Error(error));
 		} else {
 			console.log('Logged in');
@@ -102,7 +104,12 @@ var sfdcLogout = function () {
 			deferred.reject(new Error(error));
 		} else {
 			console.log('Logged out');
-      pageClient.emit('messages', 'Logged out');
+      if(!errorOccurred) {
+        pageClient.emit('messages', 'Logged out');
+      }
+      else {
+        pageClient.emit('message', 'Error Occurred');
+      }
 			deferred.resolve();
 		}
 	});
@@ -483,6 +490,7 @@ var writeHTML = function () {
     }
 
     fs.writeFile(HTMLFilename, html + data + script_end + uncompiledClasses + html_end);
+    errorOccurred = false;
     deferred.resolve();
     return deferred.promise;
 }

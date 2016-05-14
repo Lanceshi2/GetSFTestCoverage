@@ -17,6 +17,12 @@
       display: none;
     }
 
+    #errorRow {
+      display: none;
+      color: red;
+      font-weight: bold;
+    }
+
     #progBar {
       width: 80%;
       height: 30px;
@@ -90,6 +96,13 @@
           <p id="infoText"></p>
         </div>
       </div>
+      <div class="row" id="errorRow">
+        <div class="col-sm-offset-2">
+          <p class="errorText">Uh oh, Something wrong has happened!</p>
+          <p class="errorText">Please ensure your URL, user name and password is correct and retry</p>
+          <p class="errorText">If the issue persists, please file an issue at github</p>
+        </div>
+      </div>
       <div class="row">
         <div class="col-sm-2 col-sm-offset-4">
           <button type="button" id="getCoverageBtn" class="btn-primary form-control">Retrieve Test Coverage</button>
@@ -107,12 +120,13 @@
     });
 
     $("#getCoverageBtn").click(function(){
+      $("#errorRow").hide();
       var socket = io.connect('http://localhost:3000');
       var data = {};
       data.sfUrl = $("#sfUrl").val();
       data.sfPwd = $("#sfPwd").val();
       data.sfUserName = $("#sfUserName").val();
-      
+
       $("#statusRow").show();
       $("#infoRow").show();
 
@@ -141,6 +155,13 @@
         }
         else if(data === "Generating result page") {
           $("#progBar").val(82) ;
+        }
+        else if(data === "Error Occurred") {
+          $("#statusRow").hide();
+          $("#infoRow").hide();
+          $("#progBar").val(0);
+          $("#infoText").text("");
+          $("#errorRow").show();
         }
       });
     });

@@ -254,7 +254,7 @@ var queryTestResults = function myself(testRunId, deferred) {
 			if (isComplete) {
 				deferred.resolve();
 			} else {
-				pageClient.emit('messages', 'There are ' + pending + ' still running, sleeping for ' + pending + ' seconds before checking again.');
+				pageClient.emit('messages', 'There are ' + pending + ' test methods still running, sleeping for ' + pending + ' seconds before checking again.');
 				console.log('There are ' + pending + ' still running, sleeping for ' + pending + ' seconds before checking again.');
 				sleep(pending *1000);
 				myself(testRunId, deferred);

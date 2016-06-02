@@ -36,7 +36,7 @@ io.on('connection', function(client) {
   client.on('join', function(data){
     console.log(data);
     var sfLogin = JSON.parse(data);
-    sf_deploy_url = 'login.salesforce.com';
+    sf_deploy_url = sfLogin.sfUrl;
     sf_deploy_username = sfLogin.sfUserName;
     sf_deploy_password = sfLogin.sfPwd;
     queueSteps();
@@ -56,6 +56,8 @@ var id_to_class_map = {};
 /** A map of test class Ids to class information */
 var test_class_map = {};
 var classes_to_be_recompiled = {};
+var html_testClasses_seeAllData = '';
+var apexJobID;
 
 /** A map of the coverage stats */
 var coverage_stats = {};
@@ -75,16 +77,16 @@ var sfdcLogin = function () {
 	var deferred = Q.defer();
 
 	console.log('Logging in as ' + sf_deploy_username);
-  pageClient.emit('messages', 'Logging in as ' + sf_deploy_username);
-  sfdc_client = new jsforce.Connection({loginUrl : 'https://' + sf_deploy_url, version:'36.0'});
+	pageClient.emit('messages', 'Logging in as ' + sf_deploy_username);
+	sfdc_client = new jsforce.Connection({loginUrl : 'https://' + sf_deploy_url, version:'36.0'});
 
 	sfdc_client.login(sf_deploy_username, sf_deploy_password, function (error, res) {
 		if (error) {
-      pageClient.emit('messages', 'Error Occurred');
+	    	pageClient.emit('messages', 'Error Occurred: ' + error);
 			deferred.reject(new Error(error));
 		} else {
 			console.log('Logged in');
-      pageClient.emit('messages', 'Logged in');
+	    	pageClient.emit('messages', 'Logged in');
 			deferred.resolve();
 		}
 	});
@@ -102,14 +104,10 @@ var sfdcLogout = function () {
 	sfdc_client.logout(function (error, res) {
 		if (error) {
 			deferred.reject(new Error(error));
+			pageClient.emit('message', 'Error Occurred - ' + error);
 		} else {
 			console.log('Logged out');
-      if(!errorOccurred) {
-        pageClient.emit('messages', 'Logged out');
-      }
-      else {
-        pageClient.emit('message', 'Error Occurred');
-      }
+		        pageClient.emit('messages', 'Logged out');
 			deferred.resolve();
 		}
 	});
@@ -126,7 +124,7 @@ var buildClassIdToClassDataMap = function () {
 	var deferred = Q.defer();
 
 	console.log('Fetching class information');
-  pageClient.emit('messages', 'Fetching class information');
+	pageClient.emit('messages', 'Fetching class information');
 
 	sfdc_client.tooling.sobject('ApexClass').find({NamespacePrefix:'',Status:'Active'},{Id:1,Name:1,Body:1,IsValid:1}).execute(function (error, data) {
 		if (error) {
@@ -148,10 +146,18 @@ var buildClassIdToClassDataMap = function () {
 				} else {
 					test_class_map[row.Id] = {
 						name: row.Name,
-						source: row.Body
+						source: row.Body,
+						usesSeeAllData: row.Body.toLocaleLowerCase().includes('seealldata'),
+						failures: []
 					};
+					if (test_class_map[row.Id].usesSeeAllData) {
+						console.log('WARNING: ' + test_class_map[row.Id].name + ' uses seeAllData annotation.');
+						html_testClasses_seeAllData = html_testClasses_seeAllData + '\t<li>' + row.Name + '</li>';
+					}
 				}
 			});
+			console.log('There are ' + lo.size(id_to_class_map) + ' classes and ' + lo.size(test_class_map) + ' test classes.');
+			pageClient.emit('messages', 'There are ' + lo.size(id_to_class_map) + ' classes and ' + lo.size(test_class_map) + ' test classes.');
 
 			deferred.resolve();
 		}
@@ -166,7 +172,7 @@ var buildAddTriggersToClassIDMap = function () {
 	var deferred = Q.defer();
 
 	console.log('Fetching trigger information');
-  pageClient.emit('messages', 'Fetching trigger information');
+	pageClient.emit('messages', 'Fetching trigger information');
 
 	// Get the Trigger info too
 	sfdc_client.tooling.sobject('ApexTrigger').find({NamespacePrefix:'',Status:'Active'},{Id:1,Name:1,Body:1,IsValid:1}).execute(function (error, triggerData) {
@@ -174,6 +180,7 @@ var buildAddTriggersToClassIDMap = function () {
 			deferred.reject(new Error(error));
 		} else {
 			console.log('Got information about ' + lo.size(triggerData) + ' triggers');
+			pageClient.emit('messages', 'Got information about ' + lo.size(triggerData) + ' triggers');
 
 			lo.forEach(triggerData, function (row) {
 				if (!row.IsValid) {
@@ -212,6 +219,7 @@ var runAllTests = function () {
 		if (error) {
 			deferred.reject(new Error(error));
 		} else {
+			apexJobID = data;
 			deferred.resolve(data);
 		}
 	});
@@ -246,6 +254,7 @@ var queryTestResults = function myself(testRunId, deferred) {
 			if (isComplete) {
 				deferred.resolve();
 			} else {
+				pageClient.emit('messages', 'There are ' + pending + ' test methods still running, sleeping for ' + pending + ' seconds before checking again.');
 				console.log('There are ' + pending + ' still running, sleeping for ' + pending + ' seconds before checking again.');
 				sleep(pending *1000);
 				myself(testRunId, deferred);
@@ -270,6 +279,34 @@ var waitUntilTestsComplete = function (testRunId) {
 };
 
 /**
+* After test completion get any failed test details
+*/
+var queryFailedTests = function () {
+	'use strict';
+	var deferred = Q.defer();
+	pageClient.emit('messages', 'Checking for failed tests (' + apexJobID + ')');
+	console.log('Checking for failed tests (' + apexJobID + ')');
+
+	sfdc_client.query('SELECT Id, Outcome, ApexClassId, MethodName, Message, StackTrace FROM ApexTestResult WHERE Outcome = \'Fail\' AND AsyncApexJobId = \'' + apexJobID + '\' order by ApexClassId, MethodName', function (error, data) {
+		if (error) {
+			deferred.reject(new Error(error));
+		} else {
+			lo.each(data.records, function (row) {
+				if (row.Outcome.toLowerCase() === 'fail') {
+					// add details of failures to the test class map
+					var apexClassName = test_class_map[row.ApexClassId].name;
+					test_class_map[row.ApexClassId].failures.push({MethodName: row.MethodName, Message: row.Message, StackTrace: row.StackTrace});
+					console.log(apexClassName + '.' + row.MethodName + ' : ' + row.Outcome + ' - ' + row.Message + '\n' + row.StackTrace);
+				}
+			});
+			deferred.resolve();
+		}
+	});
+
+	return deferred;
+}
+
+/**
 * Gets the test data and builds an array of the number of times the line was tested
 */
 var buildCoverage = function () {
@@ -279,7 +316,7 @@ var buildCoverage = function () {
 		deferred = Q.defer();
 
 	console.log('Fetching code coverage information');
-  pageClient.emit('messages', 'Fetching code coverage information');
+	pageClient.emit('messages', 'Fetching code coverage information');
 	coverage_stats['Total Org Coverage'] = {
 		NumLinesCovered:0,
 		NumLinesUncovered:0,
@@ -479,6 +516,16 @@ var writeHTML = function () {
     };\n\
     var data=[trace1,trace2,trace3]';
 
+    var failedTests = '';
+    lo.forEach(test_class_map, function(testClass, id) {
+    	lo.forEach(testClass.failures, function(failure) {
+	    	failedTests = failedTests + '\t<tr><td>' + testClass.name + '</td><td>' + failure.MethodName + '</td><td>' + failure.Message + '</td><td>' + failure.StackTrace+ '</td></tr>';
+    	})
+    });
+    if (failedTests.length > 0) {
+    	failedTests = '<br/><H1>ERROR - Tests have failed</H1><Table><TH>Test Class Name</TH><TH>Test Method Name</TH><TH>Message</TH><TH>Stack Trace</TH>' + failedTests + '</Table>';
+    }
+
     var uncompiledClasses = '';
     if (lo.size(classes_to_be_recompiled) > 0) {
     	uncompiledClasses = '<br/><H1>WARNING these classes need to be recompiled in the org to allow proper Test Coverage to be calculated.</H1><br/><ul>\n';
@@ -489,7 +536,12 @@ var writeHTML = function () {
     	uncompiledClasses = uncompiledClasses + '</ul><br/>\n';
     }
 
-    fs.writeFile(HTMLFilename, html + data + script_end + uncompiledClasses + html_end);
+    if (html_testClasses_seeAllData.length > 0) {
+    	html_testClasses_seeAllData = '<br/><H1>WARNING these Test Classes are using See All Data annotation</H1><br/><ul>\n' +
+    									html_testClasses_seeAllData + '</ul><br/>\n';
+    }
+
+    fs.writeFile(HTMLFilename, html + data + script_end + failedTests + html_testClasses_seeAllData + uncompiledClasses + html_end);
     errorOccurred = false;
     deferred.resolve();
     return deferred.promise;
@@ -538,8 +590,9 @@ function queueSteps() {
   Q.fcall(sfdcLogin)
   	.then(buildClassIdToClassDataMap)
   	.then(buildAddTriggersToClassIDMap)
-  	// .then(runAllTests)
-  	// .then(waitUntilTestsComplete)
+ 	.then(runAllTests)
+	.then(waitUntilTestsComplete)
+	.then(queryFailedTests)
   	.then(buildCoverage)
   	.then(saveToCSVCols)
   	.then(writeHTML)

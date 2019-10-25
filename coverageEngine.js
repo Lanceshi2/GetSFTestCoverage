@@ -541,7 +541,9 @@ var writeHTML = function () {
     									html_testClasses_seeAllData + '</ul><br/>\n';
     }
 
-    fs.writeFile(HTMLFilename, html + data + script_end + failedTests + html_testClasses_seeAllData + uncompiledClasses + html_end);
+    fs.writeFile(HTMLFilename, html + data + script_end + failedTests + html_testClasses_seeAllData + uncompiledClasses + html_end, function(err,data){
+		if(err) console.log('error', err);
+	});
     errorOccurred = false;
     deferred.resolve();
     return deferred.promise;
